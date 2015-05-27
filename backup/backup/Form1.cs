@@ -18,7 +18,10 @@ namespace backup
         private readonly String addString = "Add new entry";
         private ContextMenuStrip listboxContextMenu;
         private String lastFolder;
+        private String rootFolder;
         delegate void SetTextCallback(string text);
+        private Boolean stop = false;
+        private Thread workerThread;
         public Form1()
         {
             InitializeComponent();
@@ -34,6 +37,7 @@ namespace backup
         {
             if (this.lblProgress.InvokeRequired)
             {
+                
                 SetTextCallback d = new SetTextCallback(setProgressLabel);
                 this.Invoke(d, new object[] { tekst });
             }
@@ -102,7 +106,7 @@ namespace backup
 
         private void btnStart_Click(object sender, EventArgs e)
         {
-            Thread workerThread = new Thread(checkBackupSettings);
+            workerThread = new Thread(checkBackupSettings);
             workerThread.Start();
         }
 
@@ -117,8 +121,15 @@ namespace backup
             {
                 foreach (String path in lstbackup.Items)
                 {
+                    // for the thread stop
+                    if (stop) { return; }
                     if (Directory.Exists(path))
                     {
+                        // dit zodat orignele path kunnen opvragen
+                        // todo misschien netter??
+                        DirectoryInfo dir = new DirectoryInfo(path);
+                        lastFolder = dir.Parent.FullName;
+                        rootFolder = dir.Name;
                         // TODO DIT NOG CROSS THREAD
                         //btnStart.Enabled = false;
                         backUp(path);
@@ -126,9 +137,10 @@ namespace backup
                     else
                     {
                         var ant = MessageBox.Show(path + " does not exist do you want to continue?", "Continue?", MessageBoxButtons.YesNo);
-                        if (ant == DialogResult.No) { /*// TODO DIT NOG CROSS THREADbtnStart.Enabled = true; */return; }
+                        if (ant == DialogResult.No) { /*// TODO DIT NOG CROSS THREADbtnStart.Enabled = true; */setProgressLabel("Error"); return; }
                     }
                 }
+                setProgressLabel("finished");
             }
             else
             {
@@ -140,34 +152,55 @@ namespace backup
 
         private void backUp(String path)
         {
-            //String[] filePath = Directory.GetFiles(path,"*.*",SearchOption.AllDirectories);
-            // first get the root folder
-            string dirName = new DirectoryInfo(path).Name;
-            // check if root directory exist in backup location
-            checkFolderAndCreate(Path.Combine(savePath, dirName));
-            // then every folder within
-            // loop through all the maps
-            lastFolder = path;
-            checkDirectorys(new DirectoryInfo(path).GetDirectories());
-            /*foreach(String file in filePath){
-                dirName = new DirectoryInfo(file).Name;
-                setProgressLabel(file);
-                Console.WriteLine(file);
-            }*/
+            DirectoryInfo[] folders = new DirectoryInfo[1];
+            folders[0] = new DirectoryInfo(path);
+            checkDirectorys(folders, "");
         }
         
 
-        private void checkDirectorys(DirectoryInfo[] folders)
+        private void checkDirectorys(DirectoryInfo[] folders, String path)
         {
+            
+            // door alle folders heen gaan
             foreach (DirectoryInfo dir in folders)
             {
+                // for the thread stop
+                if (stop) { return; }
+                // controleer of het bestaad zo niet aanmaken
+                checkFolderAndCreate(Path.Combine(savePath,path, dir.Name));
+                // kijken of er supfolders zijn
                 DirectoryInfo[] supFolders = new DirectoryInfo(dir.FullName).GetDirectories();
                 if (supFolders.Length > 0)
                 {
-                    checkDirectorys(supFolders);
-                }
-                Console.WriteLine(dir.Name);
-                //DirectoryInfo[] supFolders = new DirectoryInfo(dir.Name);
+                    // zo ja roepen we deze functies weer lekker aan
+                    checkDirectorys(supFolders, Path.Combine(path,dir.Name));
+                }                
+                //de bestanden controleren
+                String[] filePaths = Directory.GetFiles(Path.Combine(lastFolder, path,dir.Name));
+                if (filePaths.Length>0){
+                    foreach(String file in filePaths){
+                        // for the thread stop
+                        if (stop) { return;  }
+                        FileInfo fN = new FileInfo(file);
+                        FileInfo fB = new FileInfo(Path.Combine(savePath,path,dir.Name,fN.Name));
+                        setProgressLabel(fN.FullName);
+                        if (fB.Exists){
+                            // todo misschien aanpassen omdat iemand de LastWriteTime kan aanpassen
+                            // TODO sha256 hash maken
+                            if (fN.LastWriteTime != fB.LastWriteTime) {
+                                String d = DateTime.Now.Minute.ToString() + DateTime.Now.Hour.ToString() + DateTime.Now.Day.ToString() + DateTime.Now.Month.ToString() + DateTime.Now.Year.ToString();
+                                File.Move(fB.FullName, Path.Combine(fB.DirectoryName,fB.Name+"BK"+d));
+                                //File.Delete(fB.FullName);
+                                //fB.Name = "test";
+                                fN.CopyTo(fB.FullName);
+                            }
+                        }
+                        else
+                        {
+                            fN.CopyTo(fB.FullName);
+                        }
+                    }
+                }                
             }
         }
 
@@ -176,6 +209,35 @@ namespace backup
             if (!Directory.Exists(path))
             {
                 Directory.CreateDirectory(path);
+            }
+        }
+
+        private void Form1_FormClosing(object sender2, FormClosingEventArgs e)
+        {
+            if (!workerThread.Join(0))
+            {
+                e.Cancel = true; // Cancel the shutdown of the form.
+                stop = true; // Signal worker thread that it should gracefully shutdown.
+                var timer = new System.Timers.Timer();
+                timer.AutoReset = false;
+                timer.SynchronizingObject = this;
+                timer.Interval = 500;
+                timer.Elapsed +=
+                  (sender, args) =>
+                  {
+                      // Do a fast check to see if the worker thread is still running.
+                      if (workerThread.Join(0))
+                      {
+                          // Reissue the form closing event.
+                          Close();
+                      }
+                      else
+                      {
+                          // Keep restarting the timer until the worker thread ends.
+                          timer.Start();
+                      }
+                  };
+                timer.Start();
             }
         }
     }

@@ -35,6 +35,7 @@
             this.btnStart = new System.Windows.Forms.Button();
             this.asdToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.lblProgress = new System.Windows.Forms.Label();
+            this.progressBar1 = new System.Windows.Forms.ProgressBar();
             this.SuspendLayout();
             // 
             // lstbackup
@@ -42,7 +43,7 @@
             this.lstbackup.FormattingEnabled = true;
             this.lstbackup.Location = new System.Drawing.Point(12, 26);
             this.lstbackup.Name = "lstbackup";
-            this.lstbackup.Size = new System.Drawing.Size(157, 173);
+            this.lstbackup.Size = new System.Drawing.Size(157, 121);
             this.lstbackup.TabIndex = 0;
             this.lstbackup.KeyDown += new System.Windows.Forms.KeyEventHandler(this.lstbackup_KeyDown);
             this.lstbackup.MouseDown += new System.Windows.Forms.MouseEventHandler(this.lstbackup_MouseDown);
@@ -72,12 +73,11 @@
             this.lblLocation.Name = "lblLocation";
             this.lblLocation.Size = new System.Drawing.Size(154, 15);
             this.lblLocation.TabIndex = 3;
-            this.lblLocation.Text = "C:\\backup test";
             this.lblLocation.Click += new System.EventHandler(this.lblLocation_Click);
             // 
             // btnStart
             // 
-            this.btnStart.Location = new System.Drawing.Point(178, 174);
+            this.btnStart.Location = new System.Drawing.Point(178, 118);
             this.btnStart.Name = "btnStart";
             this.btnStart.Size = new System.Drawing.Size(84, 23);
             this.btnStart.TabIndex = 4;
@@ -93,16 +93,24 @@
             // lblProgress
             // 
             this.lblProgress.AutoEllipsis = true;
-            this.lblProgress.Location = new System.Drawing.Point(175, 156);
+            this.lblProgress.Location = new System.Drawing.Point(175, 59);
             this.lblProgress.Name = "lblProgress";
-            this.lblProgress.Size = new System.Drawing.Size(154, 15);
+            this.lblProgress.Size = new System.Drawing.Size(154, 56);
             this.lblProgress.TabIndex = 5;
+            // 
+            // progressBar1
+            // 
+            this.progressBar1.Location = new System.Drawing.Point(178, 44);
+            this.progressBar1.Name = "progressBar1";
+            this.progressBar1.Size = new System.Drawing.Size(151, 12);
+            this.progressBar1.TabIndex = 6;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(341, 209);
+            this.ClientSize = new System.Drawing.Size(341, 152);
+            this.Controls.Add(this.progressBar1);
             this.Controls.Add(this.lblProgress);
             this.Controls.Add(this.btnStart);
             this.Controls.Add(this.lblLocation);
@@ -111,6 +119,7 @@
             this.Controls.Add(this.lstbackup);
             this.Name = "Form1";
             this.Text = "Form1";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -125,6 +134,7 @@
         private System.Windows.Forms.Button btnStart;
         private System.Windows.Forms.ToolStripMenuItem asdToolStripMenuItem;
         private System.Windows.Forms.Label lblProgress;
+        private System.Windows.Forms.ProgressBar progressBar1;
     }
 }
 
