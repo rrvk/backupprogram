@@ -20,6 +20,7 @@ namespace backup
         private String lastFolder;
         private String rootFolder;
         delegate void SetTextCallback(string text);
+        delegate void ToolStripPrograssDelegate(int value);
         private Boolean stop = false;
         private Thread workerThread;
         public Form1()
@@ -44,6 +45,23 @@ namespace backup
             else
             {
                 lblProgress.Text = tekst;
+            }
+        }
+
+        public void progressBarStep(int steps)
+        {
+            if (progressBar1.InvokeRequired)
+            {
+                ToolStripPrograssDelegate del = new ToolStripPrograssDelegate(progressBarStep);
+                progressBar1.Invoke(del, new object[] { steps });
+            }
+            else
+            {
+                // voor het geval dat er teveel steps worden gedaan
+                if (progressBar1.Value != progressBar1.Maximum)
+                {
+                    progressBar1.Value += steps;
+                }
             }
         }
 
@@ -106,6 +124,17 @@ namespace backup
 
         private void btnStart_Click(object sender, EventArgs e)
         {
+            // tellen hoeveel items er zijn
+            int temp = 0;
+            foreach (String path in lstbackup.Items)
+            {
+                try
+                {
+                    temp += Directory.GetFiles(path, "*", SearchOption.AllDirectories).Length;
+                }
+                catch (UnauthorizedAccessException ex) { Console.WriteLine(ex.Message); }
+            }
+            progressBar1.Maximum = temp;
             workerThread = new Thread(checkBackupSettings);
             workerThread.Start();
         }
@@ -179,26 +208,30 @@ namespace backup
                 String[] filePaths = Directory.GetFiles(Path.Combine(lastFolder, path,dir.Name));
                 if (filePaths.Length>0){
                     foreach(String file in filePaths){
-                        // for the thread stop
-                        if (stop) { return;  }
-                        FileInfo fN = new FileInfo(file);
-                        FileInfo fB = new FileInfo(Path.Combine(savePath,path,dir.Name,fN.Name));
-                        setProgressLabel(fN.FullName);
-                        if (fB.Exists){
-                            // todo misschien aanpassen omdat iemand de LastWriteTime kan aanpassen
-                            // TODO sha256 hash maken
-                            if (fN.LastWriteTime != fB.LastWriteTime) {
-                                String d = DateTime.Now.Minute.ToString() + DateTime.Now.Hour.ToString() + DateTime.Now.Day.ToString() + DateTime.Now.Month.ToString() + DateTime.Now.Year.ToString();
-                                File.Move(fB.FullName, Path.Combine(fB.DirectoryName,fB.Name+"BK"+d));
-                                //File.Delete(fB.FullName);
-                                //fB.Name = "test";
+                        try{
+                            // for the thread stop
+                            if (stop) { return;  }
+                            FileInfo fN = new FileInfo(file);
+                            FileInfo fB = new FileInfo(Path.Combine(savePath,path,dir.Name,fN.Name));
+                            setProgressLabel(fN.FullName);
+                            if (fB.Exists){
+                                // todo misschien aanpassen omdat iemand de LastWriteTime kan aanpassen
+                                // TODO sha256 hash maken
+                                if (fN.LastWriteTime != fB.LastWriteTime) {
+                                    String d = DateTime.Now.ToString("mm") + DateTime.Now.ToString("hh") + DateTime.Now.ToString("dd") + DateTime.Now.ToString("MM") + DateTime.Now.ToString("yyyy");
+                                    File.Move(fB.FullName, Path.Combine(fB.DirectoryName,fB.Name+"BK"+d));
+                                    //File.Delete(fB.FullName);
+                                    //fB.Name = "test";
+                                    fN.CopyTo(fB.FullName);
+                                }
+                            }
+                            else
+                            {
                                 fN.CopyTo(fB.FullName);
                             }
                         }
-                        else
-                        {
-                            fN.CopyTo(fB.FullName);
-                        }
+                        catch (UnauthorizedAccessException ex) { Console.WriteLine(ex.Message); }
+                        progressBarStep(1);
                     }
                 }                
             }
