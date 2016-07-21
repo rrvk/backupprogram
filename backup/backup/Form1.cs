@@ -247,7 +247,7 @@ namespace backup
 
         private void Form1_FormClosing(object sender2, FormClosingEventArgs e)
         {
-            if (!workerThread.Join(0))
+            if (workerThread!=null && !workerThread.Join(0))
             {
                 e.Cancel = true; // Cancel the shutdown of the form.
                 stop = true; // Signal worker thread that it should gracefully shutdown.
